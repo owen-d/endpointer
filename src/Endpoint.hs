@@ -3,7 +3,6 @@
 module Endpoint where
 
 import qualified Data.ByteString.Lazy.Char8 as L8
-import           Lib
 import qualified Network.HTTP.Types.Status  as HTStat
 
 type Endpoint = String
