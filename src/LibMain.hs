@@ -2,6 +2,7 @@
 
 module LibMain where
 
+import           Control.Concurrent      (threadDelay)
 import qualified Data.UnixTime           as Time
 import qualified Endpoint                as Endpoint
 import qualified EndpointHeap            as EHeap
@@ -10,6 +11,7 @@ import qualified Network.HTTP.Client.TLS as TLS
 import qualified Network.HTTP.Simple     as Simple
 
 defaultEndpoints = ["https://api.github.com/users", "https://status.github.com"]
+oneSecondInMicroseconds = 1 * 1000 * 1000
 
 checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
 checkEndpoint endpoint = do
@@ -43,4 +45,12 @@ main = do
   setup
   let start = Time.UnixTime 0 0
       q = EHeap.mkHeap start defaultEndpoints
-  doRound q >>= \(e, _) -> putStrLn (show e)
+  loopRounds q
+
+loopRounds :: EHeap.EHeap -> IO ()
+loopRounds q = do
+  doRound q >>=
+    \(e, q') -> do
+      print e
+      if e == Nothing then threadDelay oneSecondInMicroseconds else return ()
+      loopRounds q'
