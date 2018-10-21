@@ -28,7 +28,7 @@ dependencies:
 - bytestring
 - containers
 - heap
-- time
+- unix-time
 
 library:
   source-dirs: src

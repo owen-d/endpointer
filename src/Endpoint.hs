@@ -18,3 +18,8 @@ parseStatus :: HTStat.Status -> Status
 parseStatus (HTStat.Status code _)
   | code >= 200 && code < 300 = Up
   | otherwise = Down
+
+
+-- type for union of endpoint + status. clever... i know.
+data EndpointStatus = EndpointStatus Endpoint Status
+  deriving (Show, Eq)
