@@ -38,8 +38,8 @@ check currentTime heap =
                  , Heap.insert (increaseCheck schedule) heap')
           else Nothing
 
-fetchNext :: EHeap -> Time.UnixTime -> (Maybe Endpoint.Endpoint, EHeap)
-fetchNext q t =
+fetchNext :: Time.UnixTime -> EHeap -> (Maybe Endpoint.Endpoint, EHeap)
+fetchNext t q =
   let next = check t q
   in pull q next
 

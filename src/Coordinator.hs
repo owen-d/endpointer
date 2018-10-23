@@ -4,7 +4,7 @@ module Coordinator where
 
 import           Control.Concurrent      (Chan, MVar, forkIO, threadDelay)
 import qualified Control.Concurrent      as C
-import           Control.Monad           (liftM)
+import           Control.Monad           (liftM, void)
 import qualified Data.UnixTime           as Time
 import qualified Endpoint                as Endpoint
 import qualified EndpointHeap            as EHeap
@@ -30,15 +30,13 @@ loopRounds q = do
   t <- Time.getUnixTime
   statusChan <- C.newChan
   forkIO $ report statusChan
-  let ready = EHeap.check t q
-  case ready of
+  let (next, q') = EHeap.fetchNext t q
+  case next of
     Nothing -> do
       threadDelay oneSecondInMicroseconds
-      putStrLn . show $ ready
-      loopRounds q
-    Just (endpoint, q') -> do
-      forkIO $ checkEndpoint endpoint >>= C.writeChan statusChan
-      loopRounds q'
+    Just endpoint -> do
+      void $ forkIO $ checkEndpoint endpoint >>= C.writeChan statusChan
+  loopRounds q'
 
 report :: Chan Endpoint.EndpointStatus -> IO ()
 report ch = C.readChan ch >>= print >> report ch
