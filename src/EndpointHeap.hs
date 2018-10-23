@@ -47,4 +47,3 @@ pull :: b -> Maybe (a,b) -> (Maybe a, b)
 pull def x = let
     mapper (a,b)= (Just a, b)
   in maybe (Nothing, def) mapper x
-
