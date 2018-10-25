@@ -7,6 +7,7 @@ import qualified Network.HTTP.Types.Status  as HTStat
 
 type Endpoint = String
 
+
 -- will eventually want to be able to map over json returns for different endpoints
 -- however, this isn't necessary initially
 data HealthCheck = HttpCheck | JSONCheck

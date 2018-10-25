@@ -29,6 +29,8 @@ dependencies:
 - containers
 - heap
 - unix-time
+- async
+- psqueues
 
 library:
   source-dirs: src

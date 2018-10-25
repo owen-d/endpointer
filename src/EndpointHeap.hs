@@ -2,9 +2,13 @@
 
 module EndpointHeap where
 
-import qualified Data.Heap     as Heap
-import qualified Data.UnixTime as Time
-import qualified Endpoint      as Endpoint
+import           Control.Concurrent       (Chan, MVar, forkIO, threadDelay)
+import qualified Control.Concurrent.Async as Async
+import           Data.Hashable            (Hashable)
+import qualified Data.HashPSQ             as PSQ
+import qualified Data.Heap                as Heap
+import qualified Data.UnixTime            as Time
+import qualified Endpoint                 as Endpoint
 
 type EHeap = Heap.MinHeap EndpointSchedule
 
@@ -47,3 +51,16 @@ pull :: b -> Maybe (a,b) -> (Maybe a, b)
 pull def x = let
     mapper (a,b)= (Just a, b)
   in maybe (Nothing, def) mapper x
+
+
+data TaskHeap k p = TaskHeap (PSQ.HashPSQ k p ())
+
+mkTaskHeap :: Time.UnixTime -> [Endpoint.Endpoint] -> TaskHeap Endpoint.Endpoint Time.UnixTime
+mkTaskHeap start endpoints = TaskHeap . PSQ.fromList $ map (\e -> (e, start, ())) endpoints
+
+push :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> k -> p -> TaskHeap k p
+push (TaskHeap q) k p = TaskHeap $ PSQ.insert k p () q
+
+pop :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> Maybe (k, TaskHeap k p)
+pop (TaskHeap q) = pick <$> (PSQ.minView q)
+  where pick = \(k, p, (), psq) -> (k, TaskHeap psq)
