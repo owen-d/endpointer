@@ -3,6 +3,7 @@
 module EndpointHeap where
 
 import           Control.Concurrent       (Chan, MVar, forkIO, threadDelay)
+import qualified Control.Concurrent       as Conc
 import qualified Control.Concurrent.Async as Async
 import           Data.Hashable            (Hashable)
 import qualified Data.HashPSQ             as PSQ
@@ -58,9 +59,37 @@ data TaskHeap k p = TaskHeap (PSQ.HashPSQ k p ())
 mkTaskHeap :: Time.UnixTime -> [Endpoint.Endpoint] -> TaskHeap Endpoint.Endpoint Time.UnixTime
 mkTaskHeap start endpoints = TaskHeap . PSQ.fromList $ map (\e -> (e, start, ())) endpoints
 
-push :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> k -> p -> TaskHeap k p
-push (TaskHeap q) k p = TaskHeap $ PSQ.insert k p () q
+syncPush :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> k -> p -> TaskHeap k p
+syncPush (TaskHeap q) k p = TaskHeap $ PSQ.insert k p () q
 
-pop :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> Maybe (k, TaskHeap k p)
-pop (TaskHeap q) = pick <$> (PSQ.minView q)
+syncPop :: (Hashable k, Ord k, Ord p) => TaskHeap k p -> Maybe (k, TaskHeap k p)
+syncPop (TaskHeap q) = pick <$> (PSQ.minView q)
   where pick = \(k, p, (), psq) -> (k, TaskHeap psq)
+
+-- AsyncTaskHeap represents a lock for reading, a channel for writing, and an internal psq
+data AsyncTaskHeap k = AsyncTaskHeap (MVar k) (Chan k) (TaskHeap k Time.UnixTime)
+
+pop :: AsyncTaskHeap k -> IO k
+pop (AsyncTaskHeap mvar _ _) = Conc.takeMVar mvar
+
+
+push :: AsyncTaskHeap k -> k -> IO ()
+push (AsyncTaskHeap _ chan _) = Conc.writeChan chan
+
+-- run loops, handling 3 events: puts, pops, and ready events in queue
+run :: AsyncTaskHeap k -> IO ()
+run (AsyncTaskHeap _ _ psq) = do
+  awaitNext psq
+  where
+    awaitNext psq = case (PSQ.findMin psq) of
+      Nothing -> do
+        _ <- Conc.newEmptyMVar
+        return ()
+      Just (_, ready, _) -> do
+        now <- Time.getUnixTime
+        let diff = now - ready
+        if diff < 0 then return () else threadDelay $ unixDiffToMicroSeconds diff
+
+unixDiffToMicroSeconds :: Time.UnixDiffTime -> Int
+unixDiffToMicroSeconds (Time.UnixDiffTime seconds microseconds) =
+  (seconds * (1000^2)) + microseconds
