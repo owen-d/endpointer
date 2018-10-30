@@ -22,10 +22,10 @@ defaultDelay = 1000^2
  -- refers to TaskQueue psq putMVar (pull semaphore, pull MVar)
 data TaskQueue a = TaskQueue (MVar (PSQ.HashPSQ a Time.UnixTime ()))
 
-push :: (Hashable a, Ord a) => TaskQueue a -> a -> IO ()
-push (TaskQueue lock) a = do
+push :: (Hashable a, Ord a) => TaskQueue a -> a -> Time.UnixTime -> IO ()
+push (TaskQueue lock) a scheduleTime= do
   q <- takeMVar lock
-  let q' = PSQ.insert a (Time.UnixTime 0 0) () q
+  let q' = PSQ.insert a scheduleTime () q
   putMVar lock q'
   return ()
 

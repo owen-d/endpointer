@@ -2,8 +2,9 @@
 
 module LibMain where
 
-import           Control.Concurrent.Async (race, wait, withAsync)
+import           Control.Concurrent.Async (race, wait, waitCatch, withAsync)
 import           Data.Hashable            (Hashable)
+import qualified Data.UnixTime            as Time
 import qualified Endpoint                 as Endpoint
 import qualified Network.HTTP.Client.TLS  as TLS
 import qualified Network.HTTP.Simple      as Simple
@@ -26,7 +27,15 @@ main = do
 loop :: TQ.TaskQueue Endpoint.Endpoint -> IO ()
 loop tq = do
   next <- TQ.pop tq
-  withAsync (checkEndpoint next) $ \e -> wait e >>= print
+  let enqueue = do
+        now <- Time.getUnixTime
+        let scheduleTime = Time.addUnixDiffTime now $ Time.secondsToUnixDiffTime 10
+        withAsync (TQ.push tq next scheduleTime) wait
+  withAsync (checkEndpoint next) $ \e -> do
+    waitCatch e >>= \x -> case x of
+      Left err -> print err
+      Right e  -> print e
+    enqueue
   loop tq
 
 checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
