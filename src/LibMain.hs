@@ -2,14 +2,12 @@
 
 module LibMain where
 
-import           Control.Concurrent      (threadDelay)
-import qualified Coordinator             as Coord
-import qualified Data.UnixTime           as Time
-import qualified Endpoint                as Endpoint
-import qualified EndpointHeap            as EHeap
-import           IOUtils                 (bindMaybe)
-import qualified Network.HTTP.Client.TLS as TLS
-import qualified Network.HTTP.Simple     as Simple
+import           Control.Concurrent.Async (race, wait, withAsync)
+import           Data.Hashable            (Hashable)
+import qualified Endpoint                 as Endpoint
+import qualified Network.HTTP.Client.TLS  as TLS
+import qualified Network.HTTP.Simple      as Simple
+import qualified TaskQueue                as TQ
 
 defaultEndpoints = ["https://api.github.com/users", "https://status.github.com"]
 
@@ -21,6 +19,19 @@ setup = do
 main :: IO ()
 main = do
   setup
-  let start = Time.UnixTime 0 0
-      q = EHeap.mkHeap start defaultEndpoints
-  Coord.loopRounds q
+  tq <- TQ.mkTaskQueue defaultEndpoints
+  loop tq
+
+
+loop :: TQ.TaskQueue Endpoint.Endpoint -> IO ()
+loop tq = do
+  next <- TQ.pop tq
+  withAsync (checkEndpoint next) $ \e -> wait e >>= print
+  loop tq
+
+checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
+checkEndpoint endpoint = do
+  req <- Simple.parseRequest endpoint
+  ((Endpoint.EndpointStatus endpoint) .
+   Endpoint.parseStatus . Simple.getResponseStatus) <$>
+    Simple.httpLBS req

@@ -1,16 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module TaskQueue where
+module TaskQueue
+  (
+    TaskQueue
+  , mkTaskQueue
+  , push
+  , pop
+  )
+where
 
-import           Control.Concurrent       (Chan, MVar, forkIO, putMVar,
-                                           takeMVar, threadDelay)
-import qualified Control.Concurrent       as Conc
-import           Control.Concurrent.Async (async, race, wait, withAsync)
-import qualified Control.Concurrent.Async as Async
-import qualified Control.Concurrent.MVar  as MVar
-import           Data.Hashable            (Hashable)
-import qualified Data.HashPSQ             as PSQ
-import qualified Data.UnixTime            as Time
+import           Control.Concurrent      (Chan, MVar, forkIO, putMVar, takeMVar,
+                                          threadDelay)
+import qualified Control.Concurrent      as Conc
+import qualified Control.Concurrent.MVar as MVar
+import           Data.Hashable           (Hashable)
+import qualified Data.HashPSQ            as PSQ
+import qualified Data.UnixTime           as Time
 
 defaultDelay = 1000^2
 
