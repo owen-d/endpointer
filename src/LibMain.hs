@@ -2,7 +2,10 @@
 
 module LibMain where
 
-import           Control.Concurrent.Async (race, wait, waitCatch, withAsync)
+import           Control.Concurrent       (threadDelay)
+import           Control.Concurrent.Async (async, race, wait, waitCatch,
+                                           withAsync)
+import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
 import qualified Data.UnixTime            as Time
 import qualified Endpoint                 as Endpoint
@@ -21,6 +24,10 @@ main :: IO ()
 main = do
   setup
   tq <- TQ.mkTaskQueue defaultEndpoints
+  async $ do
+    threadDelay $ 1000^2 * 1
+    putStrLn "hit"
+    TQ.push tq "https://hub.docker.com" (Time.UnixTime 0 0)
   loop tq
 
 
@@ -40,7 +47,7 @@ loop tq = do
 
 checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
 checkEndpoint endpoint = do
-  req <- Simple.parseRequest endpoint
+  req <- Simple.parseRequest (C8.unpack endpoint)
   ((Endpoint.EndpointStatus endpoint) .
    Endpoint.parseStatus . Simple.getResponseStatus) <$>
     Simple.httpLBS req
