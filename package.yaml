@@ -32,6 +32,8 @@ dependencies:
 - async
 - psqueues
 - hashable
+- hedis
+- time
 
 library:
   source-dirs: src
@@ -40,6 +42,16 @@ executables:
   endpointer:
     main:                Main.hs
     source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - endpointer
+
+  redis-hs:
+    main:                Main.hs
+    source-dirs:         app/redis
     ghc-options:
     - -threaded
     - -rtsopts
