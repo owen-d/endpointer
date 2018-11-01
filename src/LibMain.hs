@@ -36,12 +36,14 @@ loop tq = do
   next <- TQ.pop tq
   let enqueue = do
         now <- Time.getUnixTime
-        let scheduleTime = Time.addUnixDiffTime now $ Time.secondsToUnixDiffTime 10
+        let scheduleTime =
+              Time.addUnixDiffTime now $ Time.secondsToUnixDiffTime 10
         withAsync (TQ.push tq next scheduleTime) wait
   withAsync (checkEndpoint next) $ \e -> do
-    waitCatch e >>= \x -> case x of
-      Left err -> print err
-      Right e  -> print e
+    waitCatch e >>= \x ->
+      case x of
+        Left err -> print err
+        Right e  -> print e
     enqueue
   loop tq
 

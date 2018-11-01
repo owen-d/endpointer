@@ -12,13 +12,15 @@ import qualified Database.Redis         as Red
 import           Endpoint               (Endpoint, EndpointStatus (..),
                                          Status (..))
 
-
+newEndpointTopc = "endpoints/new"
 hrInSeconds = 60^2
 
 initRedis :: IO Red.Connection
 initRedis = connect defaultConnectInfo
 
-class (Show a) => RedisSerializable a where
+class (Show a) =>
+      RedisSerializable a
+  where
   redisFmt :: a -> BS.ByteString
   redisFmt = C8.pack . show
 
@@ -44,6 +46,8 @@ cache conn k v expiry = runRedis conn $
 scanEndpoints :: Red.Connection -> IO [EndpointStatus]
 scanEndpoints conn = scanAcc conn [] Red.cursor0
 
+-- scanAcc only receives keys, so we set the default statuses to Unknown. This
+-- is intended to be used when initially populating the worker.
 scanAcc :: Red.Connection -> [EndpointStatus] -> Red.Cursor -> IO [EndpointStatus]
 scanAcc conn acc cursor =
   runRedis conn $ do
@@ -51,8 +55,9 @@ scanAcc conn acc cursor =
     case res of
       Left _ -> return acc
       Right (cursor', endpts)
-        | cursor' == Red.cursor0 -> return $ acc ++ (mapEndpts endpts)
-      Right (cursor', endpts) -> liftIO $ scanAcc conn (mapEndpts endpts) cursor'
+        | cursor' == Red.cursor0 -> return $ acc ++ (mapEndpts Unknown endpts)
+      Right (cursor', endpts) ->
+        liftIO $ scanAcc conn (mapEndpts Unknown endpts) cursor'
 
-mapEndpts :: [C8.ByteString] -> [EndpointStatus]
-mapEndpts xs = map (\x -> EndpointStatus (x :: BS.ByteString) Up) xs
+mapEndpts :: Status -> [C8.ByteString] -> [EndpointStatus]
+mapEndpts status xs = map (\x -> EndpointStatus (x :: BS.ByteString) status) xs
