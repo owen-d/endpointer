@@ -15,13 +15,31 @@ import           Endpoint               (Endpoint, EndpointStatus (..),
 
 hrInSeconds = 60^2
 
-init :: IO Red.Connection
-init = connect defaultConnectInfo
+initRedis :: IO Red.Connection
+initRedis = connect defaultConnectInfo
+
+class (Show a) => RedisSerializable a where
+  redisFmt :: a -> BS.ByteString
+  redisFmt = C8.pack . show
+
+instance RedisSerializable Status
+instance RedisSerializable EndpointStatus
+instance RedisSerializable BS.ByteString where
+  redisFmt = id
 
 cacheEndpoint :: Red.Connection -> EndpointStatus -> IO ()
 cacheEndpoint conn (EndpointStatus endpt status) = do
-  runRedis conn $
-    void $ setex endpt hrInSeconds (C8.pack . show $ status)
+  cache conn endpt status hrInSeconds
+
+cache ::
+     (RedisSerializable k, RedisSerializable v)
+  => Red.Connection
+  -> k
+  -> v
+  -> Integer
+  -> IO ()
+cache conn k v expiry = runRedis conn $
+  void $ setex (redisFmt k) expiry $ redisFmt v
 
 scanEndpoints :: Red.Connection -> IO [EndpointStatus]
 scanEndpoints conn = scanAcc conn [] Red.cursor0
