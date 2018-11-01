@@ -8,12 +8,14 @@ import           Control.Concurrent.Async (async, race, wait, waitCatch,
 import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
 import qualified Data.UnixTime            as Time
+import qualified Database.Redis           as Red
 import qualified Endpoint                 as Endpoint
 import qualified Network.HTTP.Client.TLS  as TLS
 import qualified Network.HTTP.Simple      as Simple
+import           Redis                    (cacheEndpoint, initRedis,
+                                           scanEndpoints)
 import qualified TaskQueue                as TQ
 
-defaultEndpoints = ["https://api.github.com/users", "https://status.github.com"]
 
 setup :: IO ()
 setup = do
@@ -23,11 +25,9 @@ setup = do
 main :: IO ()
 main = do
   setup
-  tq <- TQ.mkTaskQueue defaultEndpoints
-  async $ do
-    threadDelay $ 1000^2 * 1
-    putStrLn "hit"
-    TQ.push tq "https://hub.docker.com" (Time.UnixTime 0 0)
+  tq <- TQ.mkTaskQueue []
+  redisConn <- initRedis
+  popFromRedis redisConn tq
   loop tq
 
 
@@ -51,3 +51,9 @@ checkEndpoint endpoint = do
   ((Endpoint.EndpointStatus endpoint) .
    Endpoint.parseStatus . Simple.getResponseStatus) <$>
     Simple.httpLBS req
+
+popFromRedis :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
+popFromRedis conn tq = do
+  let queueEndpoint (Endpoint.EndpointStatus endpoint _) = TQ.push tq endpoint (Time.UnixTime 0 0)
+  endpts <- scanEndpoints conn
+  mapM_ queueEndpoint endpts

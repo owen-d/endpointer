@@ -12,7 +12,7 @@ type Endpoint = BS.ByteString
 -- however, this isn't necessary initially
 data HealthCheck = HttpCheck | JSONCheck
 
-data Status = Up | Down
+data Status = Up | Down | Unknown
   deriving (Show, Read, Eq)
 
 parseStatus :: HTStat.Status -> Status
