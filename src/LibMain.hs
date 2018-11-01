@@ -3,8 +3,9 @@
 module LibMain where
 
 import           Control.Concurrent       (threadDelay)
-import           Control.Concurrent.Async (async, race, wait, waitCatch,
+import           Control.Concurrent.Async (async, link, race, wait, waitCatch,
                                            withAsync)
+import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
 import qualified Data.UnixTime            as Time
@@ -13,7 +14,8 @@ import qualified Endpoint                 as Endpoint
 import qualified Network.HTTP.Client.TLS  as TLS
 import qualified Network.HTTP.Simple      as Simple
 import           Redis                    (cacheEndpoint, initRedis,
-                                           scanEndpoints)
+                                           newEndpointTopic, scanEndpoints,
+                                           subscriber)
 import qualified TaskQueue                as TQ
 
 
@@ -28,6 +30,9 @@ main = do
   tq <- TQ.mkTaskQueue []
   redisConn <- initRedis
   popFromRedis redisConn tq
+  -- link redis receiver to main thread
+  async (receiveNewEndpoints redisConn tq) >>= link
+  putStrLn "looping"
   loop tq
 
 
@@ -59,3 +64,13 @@ popFromRedis conn tq = do
   let queueEndpoint (Endpoint.EndpointStatus endpoint _) = TQ.push tq endpoint (Time.UnixTime 0 0)
   endpts <- scanEndpoints conn
   mapM_ queueEndpoint endpts
+
+receiveNewEndpoints :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
+receiveNewEndpoints conn tq =
+  subscriber conn [(C8.pack newEndpointTopic)] cb
+  where
+    cb msg = do
+      print msg
+      TQ.push tq (Red.msgMessage msg) $ Time.UnixTime 0 0
+      putStrLn "queued"
+      mempty

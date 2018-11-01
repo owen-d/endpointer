@@ -12,7 +12,7 @@ import qualified Database.Redis         as Red
 import           Endpoint               (Endpoint, EndpointStatus (..),
                                          Status (..))
 
-newEndpointTopc = "endpoints/new"
+newEndpointTopic = "endpoints/new"
 hrInSeconds = 60^2
 
 initRedis :: IO Red.Connection
@@ -61,3 +61,7 @@ scanAcc conn acc cursor =
 
 mapEndpts :: Status -> [C8.ByteString] -> [EndpointStatus]
 mapEndpts status xs = map (\x -> EndpointStatus (x :: BS.ByteString) status) xs
+
+subscriber :: Red.Connection -> [BS.ByteString] -> (Red.Message -> IO Red.PubSub) -> IO ()
+subscriber conn chans callback =
+  runRedis conn $ Red.pubSub (Red.subscribe chans) callback
