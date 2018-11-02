@@ -33,24 +33,23 @@ main = do
   -- link redis receiver to main thread
   async (receiveNewEndpoints redisConn tq) >>= link
   putStrLn "looping"
-  loop tq
+  loop tq $ \e -> do
+    status <- checkEndpoint e
+    cacheEndpoint redisConn status
+    print status
 
 
-loop :: TQ.TaskQueue Endpoint.Endpoint -> IO ()
-loop tq = do
+loop :: TQ.TaskQueue Endpoint.Endpoint -> (Endpoint.Endpoint -> IO ()) -> IO ()
+loop tq fn = do
   next <- TQ.pop tq
   let enqueue = do
         now <- Time.getUnixTime
         let scheduleTime =
               Time.addUnixDiffTime now $ Time.secondsToUnixDiffTime 10
         withAsync (TQ.push tq next scheduleTime) wait
-  withAsync (checkEndpoint next) $ \e -> do
-    waitCatch e >>= \x ->
-      case x of
-        Left err -> print err
-        Right e  -> print e
-    enqueue
-  loop tq
+  withAsync (fn next) wait
+  enqueue
+  loop tq fn
 
 checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
 checkEndpoint endpoint = do
@@ -71,6 +70,9 @@ receiveNewEndpoints conn tq =
   where
     cb msg = do
       print msg
-      TQ.push tq (Red.msgMessage msg) $ Time.UnixTime 0 0
-      putStrLn "queued"
+      let msg' = Red.msgMessage msg
+      if Endpoint.isEndpoint msg' then
+        TQ.push tq msg' $ Time.UnixTime 0 0
+      else
+        putStrLn $ "invalid endpoint: " ++ (show msg')
       mempty
