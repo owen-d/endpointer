@@ -57,7 +57,9 @@ scanAcc conn acc cursor =
       Right (cursor', endpts)
         | cursor' == Red.cursor0 -> return $ acc ++ (mapEndpts Unknown endpts)
       Right (cursor', endpts) ->
-        liftIO $ scanAcc conn (mapEndpts Unknown endpts) cursor'
+        let newEndpts = mapEndpts Unknown endpts
+        in
+          liftIO $ scanAcc conn (acc ++ newEndpts) cursor'
 
 mapEndpts :: Status -> [C8.ByteString] -> [EndpointStatus]
 mapEndpts status xs =
