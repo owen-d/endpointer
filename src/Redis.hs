@@ -10,7 +10,7 @@ import           Database.Redis         (connect, defaultConnectInfo, get,
                                          runRedis, set, setex)
 import qualified Database.Redis         as Red
 import           Endpoint               (Endpoint, EndpointStatus (..),
-                                         Status (..))
+                                         Status (..), isEndpoint)
 
 newEndpointTopic = "endpoints/new"
 hrInSeconds = 60^2
@@ -60,7 +60,12 @@ scanAcc conn acc cursor =
         liftIO $ scanAcc conn (mapEndpts Unknown endpts) cursor'
 
 mapEndpts :: Status -> [C8.ByteString] -> [EndpointStatus]
-mapEndpts status xs = map (\x -> EndpointStatus (x :: BS.ByteString) status) xs
+mapEndpts status xs =
+  [ e
+  | x <- xs
+  , let e = EndpointStatus x status
+  , isEndpoint x
+  ]
 
 subscriber :: Red.Connection -> [BS.ByteString] -> (Red.Message -> IO Red.PubSub) -> IO ()
 subscriber conn chans callback =

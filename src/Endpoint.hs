@@ -3,6 +3,9 @@
 module Endpoint where
 
 import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Char8     as C8
+import           Data.Maybe                (isJust)
+import qualified Network.HTTP.Simple       as Simple
 import qualified Network.HTTP.Types.Status as HTStat
 
 type Endpoint = BS.ByteString
@@ -24,3 +27,6 @@ parseStatus (HTStat.Status code _)
 -- type for union of endpoint + status. clever... i know.
 data EndpointStatus = EndpointStatus Endpoint Status
   deriving (Show, Read, Eq)
+
+isEndpoint :: Endpoint -> Bool
+isEndpoint e = isJust (Simple.parseRequest $ C8.unpack e )
