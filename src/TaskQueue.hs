@@ -6,6 +6,7 @@ module TaskQueue
   , mkTaskQueue
   , push
   , pop
+  , secondsToNominalDiffTime
   )
 where
 
@@ -19,6 +20,9 @@ import qualified Data.Time.Clock         as Time
 
 secondsToMicroSeconds :: (Num a, RealFrac a) => a -> Int
 secondsToMicroSeconds x = floor $ x * (1000^2)
+
+secondsToNominalDiffTime :: Integer -> Time.NominalDiffTime
+secondsToNominalDiffTime x = fromInteger x :: Time.NominalDiffTime
 
 defaultDelay = secondsToMicroSeconds 1
 

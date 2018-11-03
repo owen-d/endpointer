@@ -8,7 +8,7 @@ import           Control.Concurrent.Async (async, link, race, wait, waitCatch,
 import qualified Data.ByteString          as BS
 import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
-import qualified Data.UnixTime            as Time
+import qualified Data.Time.Clock          as Time
 import qualified Database.Redis           as Red
 import           Endpoint                 (getEndpoint, getStatus)
 import qualified Endpoint                 as Endpoint
@@ -44,9 +44,9 @@ loop :: TQ.TaskQueue Endpoint.Endpoint -> (Endpoint.Endpoint -> IO ()) -> IO ()
 loop tq fn = do
   next <- TQ.pop tq
   let enqueue = do
-        now <- Time.getUnixTime
+        now <- Time.getCurrentTime
         let scheduleTime =
-              Time.addUnixDiffTime now $ Time.secondsToUnixDiffTime 10
+              Time.addUTCTime (TQ.secondsToNominalDiffTime 10) now
         withAsync (TQ.push tq next scheduleTime) wait
   withAsync (fn next) wait
   enqueue
@@ -61,7 +61,8 @@ checkEndpoint endpoint = do
 
 popFromRedis :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
 popFromRedis conn tq = do
-  let queueEndpoint (Endpoint.EndpointStatus endpoint _) = TQ.push tq endpoint (Time.UnixTime 0 0)
+  now <- Time.getCurrentTime
+  let queueEndpoint (Endpoint.EndpointStatus endpoint _) = TQ.push tq endpoint now
   endpts <- scanEndpoints conn
   mapM_ queueEndpoint endpts
 
@@ -71,9 +72,10 @@ receiveNewEndpoints conn tq =
   where
     cb msg = do
       print msg
+      now <- Time.getCurrentTime
       let msg' = Red.msgMessage msg
       if Endpoint.isEndpoint msg' then
-        TQ.push tq msg' $ Time.UnixTime 0 0
+        TQ.push tq msg' now
       else
         putStrLn $ "invalid endpoint: " ++ (show msg')
       mempty
