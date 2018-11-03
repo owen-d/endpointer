@@ -10,10 +10,11 @@ import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
 import qualified Data.UnixTime            as Time
 import qualified Database.Redis           as Red
+import           Endpoint                 (getEndpoint, getStatus)
 import qualified Endpoint                 as Endpoint
 import qualified Network.HTTP.Client.TLS  as TLS
 import qualified Network.HTTP.Simple      as Simple
-import           Redis                    (cacheEndpoint, initRedis,
+import           Redis                    (boundedLPush, initRedis,
                                            newEndpointTopic, scanEndpoints,
                                            subscriber)
 import qualified TaskQueue                as TQ
@@ -35,7 +36,7 @@ main = do
   putStrLn "looping"
   loop tq $ \e -> do
     status <- checkEndpoint e
-    cacheEndpoint redisConn status
+    boundedLPush redisConn (getEndpoint status) [(getStatus status)] 100
     print status
 
 

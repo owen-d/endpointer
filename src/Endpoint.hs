@@ -25,7 +25,11 @@ parseStatus (HTStat.Status code _)
 
 
 -- type for union of endpoint + status. clever... i know.
-data EndpointStatus = EndpointStatus Endpoint Status
+
+data EndpointStatus = EndpointStatus
+  { getEndpoint :: Endpoint
+  , getStatus   :: Status
+  }
   deriving (Show, Read, Eq)
 
 isEndpoint :: Endpoint -> Bool

@@ -72,3 +72,10 @@ mapEndpts status xs =
 subscriber :: Red.Connection -> [BS.ByteString] -> (Red.Message -> IO Red.PubSub) -> IO ()
 subscriber conn chans callback =
   runRedis conn $ Red.pubSub (Red.subscribe chans) callback
+
+-- TODO: error handling
+boundedLPush :: (RedisSerializable k, RedisSerializable v) => Red.Connection ->  k -> [v] -> Integer -> IO ()
+boundedLPush conn k vs maxLength = runRedis conn $ do
+  Red.lpush (redisFmt k) (map redisFmt vs)
+  Red.ltrim (redisFmt k) 0 $ maxLength - 1
+  pure ()
