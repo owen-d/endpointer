@@ -28,12 +28,12 @@ dependencies:
 - bytestring
 - containers
 - heap
-- unix-time
 - async
 - psqueues
 - hashable
 - hedis
 - time
+- postgresql-simple
 
 library:
   source-dirs: src
