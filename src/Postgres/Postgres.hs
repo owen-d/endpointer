@@ -3,6 +3,7 @@
 
 module Postgres.Postgres where
 
+import           Config                     (HasPgConn, getPgConn)
 import qualified Data.ByteString            as BS
 import qualified Data.ByteString.Char8      as C8
 import           Data.Maybe                 (isJust)
@@ -12,19 +13,21 @@ import           Endpoint                   (Endpoint)
 import qualified Endpoint                   as End
 import           Text.Read                  (readMaybe)
 
-fetchEndpoints :: PG.Connection -> IO [Endpoint]
-fetchEndpoints conn = do
+endpointsDb = "endpoints"
+
+fetchEndpoints :: HasPgConn a => a -> IO [Endpoint]
+fetchEndpoints a = do
   let mapEndpoint (proto, e) =
         let unpacked = C8.unpack proto
          in readMaybe unpacked >>= \proto -> Just $ End.Endpoint proto e
   xs :: [(BS.ByteString, BS.ByteString)] <-
-    PG.query conn "select proto, relative_url from endpoints" ()
+    PG.query (getPgConn a) "select proto, relative_url from endpoints" ()
   return . (filter End.isEndpoint) . catMaybes . (map mapEndpoint) $ xs
 
-putEndpoint :: PG.Connection -> Endpoint -> IO ()
-putEndpoint conn e = do
+putEndpoint :: HasPgConn a => a -> Endpoint -> IO ()
+putEndpoint a e = do
   PG.execute
-    conn
+    (getPgConn a)
     "insert into endpoints (proto, relative_url) values (?, ?)"
     (show e, End.relativeUrl e)
   pure ()
