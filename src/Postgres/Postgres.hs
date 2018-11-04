@@ -22,13 +22,13 @@ fetchEndpoints a = do
         let unpacked = C8.unpack proto
          in readMaybe unpacked >>= \proto -> Just $ End.Endpoint proto e
   xs :: [(BS.ByteString, BS.ByteString)] <-
-    PG.query (getPgConn a) "select proto, relative_url from ?" [endpointsTable :: String]
+    PG.query (getPgConn a) "select proto, relative_url from endpoints" ()
   return . (filter End.isEndpoint) . catMaybes . (map mapEndpoint) $ xs
 
 putEndpoint :: HasPgConn a => a -> Endpoint -> IO ()
 putEndpoint a e = do
   PG.execute
     (getPgConn a)
-    "insert into ? (proto, relative_url) values (?, ?)"
-    (endpointsTable :: String, show e, End.relativeUrl e)
+    "insert into endpoints (proto, relative_url) values (?, ?)"
+    (show e, End.relativeUrl e)
   pure ()

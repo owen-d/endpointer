@@ -53,14 +53,14 @@ setup = do
 main :: IO ()
 main = do
   env <- setup
-  popFromRedis env env
+  seedQueue env env
   -- link redis receiver to main thread
   async (receiveNewEndpoints env env) >>= link
   putStrLn "looping"
   loop env $ \e -> do
     status <- checkEndpoint e
     boundedLPush env (getEndpoint status) [(getStatus status)] 100
-    print status
+    (getLog env) (show status)
 
 loop :: (HasTq a) => a -> (End.Endpoint -> IO ()) -> IO ()
 loop a fn = do
@@ -75,11 +75,11 @@ loop a fn = do
   enqueue
   loop tq fn
 
-popFromRedis :: (HasRedisConn a, HasTq b) => a -> b -> IO ()
-popFromRedis a b = do
+seedQueue :: (HasPgConn a, HasTq b) => a -> b -> IO ()
+seedQueue a b = do
   now <- Time.getCurrentTime
-  let queueEndpoint (End.EndpointStatus endpoint _) = TQ.push (getTq b) endpoint now
-  endpts <- scanEndpoints (getRedisConn a)
+  let queueEndpoint endpoint = TQ.push (getTq b) endpoint now
+  endpts <- Postgres.fetchEndpoints a
   mapM_ queueEndpoint endpts
 
 receiveNewEndpoints :: (HasRedisConn a, HasTq b) => a -> b -> IO ()
