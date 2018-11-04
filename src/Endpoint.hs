@@ -1,19 +1,24 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Endpoint where
 
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as C8
+import           Data.Hashable             (Hashable)
 import           Data.Maybe                (isJust)
+import           GHC.Generics              (Generic)
 import qualified Network.HTTP.Simple       as Simple
 import qualified Network.HTTP.Simple       as Simple
 import qualified Network.HTTP.Types.Status as HTStat
 
 data Endpoint = Endpoint {proto :: Proto, relativeUrl :: BS.ByteString}
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic)
+instance Hashable Endpoint
 
 data Proto = Http | Https
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Generic)
+instance Hashable Proto
 
 -- will eventually want to be able to map over json returns for different endpoints
 -- however, this isn't necessary initially
