@@ -14,6 +14,7 @@ import qualified Endpoint                   as End
 import           Text.Read                  (readMaybe)
 
 endpointsDb = "endpointer"
+endpointsTable = "endpoints"
 
 fetchEndpoints :: HasPgConn a => a -> IO [Endpoint]
 fetchEndpoints a = do
@@ -21,13 +22,13 @@ fetchEndpoints a = do
         let unpacked = C8.unpack proto
          in readMaybe unpacked >>= \proto -> Just $ End.Endpoint proto e
   xs :: [(BS.ByteString, BS.ByteString)] <-
-    PG.query (getPgConn a) "select proto, relative_url from endpoints" ()
+    PG.query (getPgConn a) "select proto, relative_url from ?" [endpointsTable :: String]
   return . (filter End.isEndpoint) . catMaybes . (map mapEndpoint) $ xs
 
 putEndpoint :: HasPgConn a => a -> Endpoint -> IO ()
 putEndpoint a e = do
   PG.execute
     (getPgConn a)
-    "insert into endpoints (proto, relative_url) values (?, ?)"
-    (show e, End.relativeUrl e)
+    "insert into ? (proto, relative_url) values (?, ?)"
+    (endpointsTable :: String, show e, End.relativeUrl e)
   pure ()
