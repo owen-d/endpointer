@@ -4,8 +4,8 @@ set -e
 
 DB_NAME=endpointer
 TABLE_NAME=endpoints
-CLI=${CLI:-"docker run --rm -i --link pg:postgres postgres:11 psql"}
-CLI_OPTS=${CLI_OPTS:-"-h postgres -U postgres "}
+CLI=${CLI:-"docker run --rm -i --link pg:postgres -e PGPASSWORD=secret postgres:11 psql"}
+CLI_OPTS=${CLI_OPTS:-"-h postgres -U postgres"}
 
 
 # run "${cmd}" addl-opts input_file
@@ -53,13 +53,18 @@ seed_rows() {
     cat endpoints.csv | ${CLI} ${CLI_OPTS} -d $DB_NAME -c "COPY $TABLE_NAME (relative_url, proto) FROM STDIN WITH DELIMITER ',';"
 }
 
+select_rows() {
+    run "SELECT * from endpoints;" "-d endpointer"
+}
+
 
 main () {
     drop_db
     create_db
     create_table
     seed_rows
-    drop_table
+    # select_rows
+    # drop_table
 }
 
 main
