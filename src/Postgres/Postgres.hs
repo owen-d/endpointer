@@ -10,17 +10,13 @@ import           Data.Maybe                 (catMaybes)
 import           Database.PostgreSQL.Simple as PG
 import           Endpoint                   (Endpoint)
 import qualified Endpoint                   as End
+import           Text.Read                  (readMaybe)
 
 fetchEndpoints :: PG.Connection -> IO [Endpoint]
 fetchEndpoints conn = do
   let mapEndpoint (proto, e) =
         let unpacked = C8.unpack proto
-         in case unpacked of
-              p
-                | p == (show End.Http) -> Just $ End.Endpoint End.Http e
-              p
-                | p == (show End.Https) -> Just $ End.Endpoint End.Https e
-              _ -> Nothing
+         in readMaybe unpacked >>= \proto -> Just $ End.Endpoint proto e
   xs :: [(BS.ByteString, BS.ByteString)] <-
     PG.query conn "select proto, relative_url from endpoints" ()
   return . (filter End.isEndpoint) . catMaybes . (map mapEndpoint) $ xs
