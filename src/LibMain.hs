@@ -10,13 +10,13 @@ import qualified Data.ByteString.Char8    as C8
 import           Data.Hashable            (Hashable)
 import qualified Data.Time.Clock          as Time
 import qualified Database.Redis           as Red
-import           Endpoint                 (getEndpoint, getStatus)
+import           Endpoint                 (checkEndpoint, getEndpoint,
+                                           getStatus)
 import qualified Endpoint                 as Endpoint
 import qualified Network.HTTP.Client.TLS  as TLS
-import qualified Network.HTTP.Simple      as Simple
-import           Redis                    (boundedLPush, initRedis,
-                                           newEndpointTopic, scanEndpoints,
-                                           subscriber)
+import           Redis                    (boundedLPush, deserializeRedis,
+                                           initRedis, newEndpointTopic,
+                                           scanEndpoints, subscriber)
 import qualified TaskQueue                as TQ
 
 
@@ -39,7 +39,6 @@ main = do
     boundedLPush redisConn (getEndpoint status) [(getStatus status)] 100
     print status
 
-
 loop :: TQ.TaskQueue Endpoint.Endpoint -> (Endpoint.Endpoint -> IO ()) -> IO ()
 loop tq fn = do
   next <- TQ.pop tq
@@ -51,13 +50,6 @@ loop tq fn = do
   withAsync (fn next) wait
   enqueue
   loop tq fn
-
-checkEndpoint :: Endpoint.Endpoint -> IO (Endpoint.EndpointStatus)
-checkEndpoint endpoint = do
-  req <- Simple.parseRequest (C8.unpack endpoint)
-  ((Endpoint.EndpointStatus endpoint) .
-   Endpoint.parseStatus . Simple.getResponseStatus) <$>
-    Simple.httpLBS req
 
 popFromRedis :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
 popFromRedis conn tq = do
@@ -74,8 +66,9 @@ receiveNewEndpoints conn tq =
       print msg
       now <- Time.getCurrentTime
       let msg' = Red.msgMessage msg
-      if Endpoint.isEndpoint msg' then
-        TQ.push tq msg' now
+          endpt = (deserializeRedis msg') :: Endpoint.Endpoint
+      if Endpoint.isEndpoint endpt then
+        TQ.push tq endpt now
       else
         putStrLn $ "invalid endpoint: " ++ (show msg')
       mempty

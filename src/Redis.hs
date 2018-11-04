@@ -18,12 +18,15 @@ hrInSeconds = 60^2
 initRedis :: IO Red.Connection
 initRedis = connect defaultConnectInfo
 
-class (Show a) =>
+class (Show a, Read a) =>
       RedisSerializable a
   where
   redisFmt :: a -> BS.ByteString
   redisFmt = C8.pack . show
+  deserializeRedis :: BS.ByteString -> a
+  deserializeRedis = read . C8.unpack
 
+instance RedisSerializable Endpoint
 instance RedisSerializable Status
 instance RedisSerializable EndpointStatus
 instance RedisSerializable BS.ByteString where
@@ -63,10 +66,11 @@ scanAcc conn acc cursor =
 
 mapEndpts :: Status -> [C8.ByteString] -> [EndpointStatus]
 mapEndpts status xs =
-  [ e
+  [ es
   | x <- xs
-  , let e = EndpointStatus x status
-  , isEndpoint x
+  , let e = deserializeRedis x :: Endpoint
+        es = EndpointStatus e status
+  , isEndpoint e
   ]
 
 subscriber :: Red.Connection -> [BS.ByteString] -> (Red.Message -> IO Red.PubSub) -> IO ()

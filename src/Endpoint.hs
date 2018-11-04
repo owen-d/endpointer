@@ -13,11 +13,11 @@ import qualified Network.HTTP.Simple       as Simple
 import qualified Network.HTTP.Types.Status as HTStat
 
 data Endpoint = Endpoint {proto :: Proto, relativeUrl :: BS.ByteString}
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
 instance Hashable Endpoint
 
 data Proto = Http | Https
-  deriving (Show, Read, Eq, Generic)
+  deriving (Show, Read, Eq, Ord, Generic)
 instance Hashable Proto
 
 -- will eventually want to be able to map over json returns for different endpoints
@@ -25,7 +25,8 @@ instance Hashable Proto
 data HealthCheck = HttpCheck | JSONCheck
 
 data Status = Up | Down | Unknown
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Eq, Ord, Generic)
+instance Hashable Status
 
 parseStatus :: HTStat.Status -> Status
 parseStatus (HTStat.Status code _)
@@ -39,7 +40,7 @@ data EndpointStatus = EndpointStatus
   { getEndpoint :: Endpoint
   , getStatus   :: Status
   }
-  deriving (Show, Read, Eq)
+  deriving (Show, Read, Ord, Eq)
 
 isEndpoint :: Endpoint -> Bool
 isEndpoint e = isJust . Simple.parseRequest . fmtHttp $ e
