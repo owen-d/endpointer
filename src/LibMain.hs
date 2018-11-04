@@ -12,12 +12,13 @@ import qualified Data.Time.Clock          as Time
 import qualified Database.Redis           as Red
 import           Endpoint                 (checkEndpoint, getEndpoint,
                                            getStatus)
-import qualified Endpoint                 as Endpoint
+import qualified Endpoint                 as End
 import qualified Network.HTTP.Client.TLS  as TLS
 import           Redis                    (boundedLPush, deserializeRedis,
                                            initRedis, newEndpointTopic,
                                            scanEndpoints, subscriber)
 import qualified TaskQueue                as TQ
+
 
 
 setup :: IO ()
@@ -39,7 +40,7 @@ main = do
     boundedLPush redisConn (getEndpoint status) [(getStatus status)] 100
     print status
 
-loop :: TQ.TaskQueue Endpoint.Endpoint -> (Endpoint.Endpoint -> IO ()) -> IO ()
+loop :: TQ.TaskQueue End.Endpoint -> (End.Endpoint -> IO ()) -> IO ()
 loop tq fn = do
   next <- TQ.pop tq
   let enqueue = do
@@ -51,14 +52,14 @@ loop tq fn = do
   enqueue
   loop tq fn
 
-popFromRedis :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
+popFromRedis :: Red.Connection -> TQ.TaskQueue End.Endpoint -> IO ()
 popFromRedis conn tq = do
   now <- Time.getCurrentTime
-  let queueEndpoint (Endpoint.EndpointStatus endpoint _) = TQ.push tq endpoint now
+  let queueEndpoint (End.EndpointStatus endpoint _) = TQ.push tq endpoint now
   endpts <- scanEndpoints conn
   mapM_ queueEndpoint endpts
 
-receiveNewEndpoints :: Red.Connection -> TQ.TaskQueue Endpoint.Endpoint -> IO ()
+receiveNewEndpoints :: Red.Connection -> TQ.TaskQueue End.Endpoint -> IO ()
 receiveNewEndpoints conn tq =
   subscriber conn [(C8.pack newEndpointTopic)] cb
   where
@@ -66,8 +67,8 @@ receiveNewEndpoints conn tq =
       print msg
       now <- Time.getCurrentTime
       let msg' = Red.msgMessage msg
-          endpt = (deserializeRedis msg') :: Endpoint.Endpoint
-      if Endpoint.isEndpoint endpt then
+          endpt = (deserializeRedis msg') :: End.Endpoint
+      if End.isEndpoint endpt then
         TQ.push tq endpt now
       else
         putStrLn $ "invalid endpoint: " ++ (show msg')
