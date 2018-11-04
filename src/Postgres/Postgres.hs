@@ -13,7 +13,7 @@ import           Endpoint                   (Endpoint)
 import qualified Endpoint                   as End
 import           Text.Read                  (readMaybe)
 
-endpointsDb = "endpoints"
+endpointsDb = "endpointer"
 
 fetchEndpoints :: HasPgConn a => a -> IO [Endpoint]
 fetchEndpoints a = do
