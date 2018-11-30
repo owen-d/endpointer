@@ -4,8 +4,8 @@ set -e
 
 DB_NAME=endpointer
 TABLE_NAME=endpoints
-CLI=${CLI:-"docker run --rm -i --link pg:postgres -e PGPASSWORD=secret postgres:11 psql"}
-CLI_OPTS=${CLI_OPTS:-"-h postgres -U postgres"}
+CLI=${CLI:-"docker run --rm --net=host -e PGPASSWORD=secret postgres:11 psql"}
+CLI_OPTS=${CLI_OPTS:-"-h localhost -U postgres"}
 
 
 # run "${cmd}" addl-opts input_file
